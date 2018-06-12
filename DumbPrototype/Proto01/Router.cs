@@ -20,18 +20,20 @@ namespace Proto01
 
         public string Id { get; set; }
 
-        internal Dictionary<string,RouterLink> links = new Dictionary<string, RouterLink>();
+        //internal Dictionary<string,RouterLink> links = new Dictionary<string, RouterLink>();
+
+        internal Dictionary<string, RouterLinkEnd> linkEnds = new Dictionary<string, RouterLinkEnd>();
         internal Dictionary<string, RouteInfo> routes = new Dictionary<string, RouteInfo>();
 
-        public void AddLink(string targetId, RouterLink routerLink)
-        {
-            lock (locker)
-            {
-                links[targetId] = routerLink;
-                routerLink.RegisterProcessMessage(Id, ProcessMessage);
-                UpdateRoute(targetId, targetId, 1);
-            }
-        }
+        //public void AddLink(string targetId, RouterLink routerLink)
+        //{
+        //    lock (locker)
+        //    {
+        //        links[targetId] = routerLink;
+        //        routerLink.RegisterProcessMessage(Id, ProcessMessage);
+        //        UpdateRoute(targetId, targetId, 1);
+        //    }
+        //}
 
         public bool UpdateRoute(string targetId, string nextId, int length)
         {
@@ -60,10 +62,11 @@ namespace Proto01
         {
             lock (locker)
             {
-                foreach (var link in links)
+                var allRoutes = GetAllRoutes();
+                foreach (var link in linkEnds)
                 {
                     if (link.Key == skipId) continue;
-                    link.Value.PropagateRoutes(this.Id);
+                    link.Value.PropagateRoutes(allRoutes);
                 }
             }
         }
@@ -85,7 +88,7 @@ namespace Proto01
                 else if (!message.StepToDie())
                 {
                     var nextId = routes[message.To].NextId;
-                    links[nextId].Forward(message, nextId);
+                    linkEnds[nextId].Forward(message);
                 }
             }
         }
@@ -134,6 +137,16 @@ namespace Proto01
             lock (locker)
             {
                 return routes.ToDictionary(info => info.Key, info => info.Value.Length);
+            }
+        }
+
+        public void AddLinkEnd(RouterLinkEnd linkEnd)
+        {
+            lock (locker)
+            {
+                linkEnds[linkEnd.RemoteId] = linkEnd;
+                linkEnd.RegisterProcessMessage(ProcessMessage);
+                UpdateRoute(linkEnd.RemoteId, linkEnd.RemoteId, 1);
             }
         }
     }
